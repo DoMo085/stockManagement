@@ -1,3 +1,10 @@
+:root {
+  --primary-color: #1e293b;
+  --secondary-color: #ffffff;
+  --font-size-base: 16px;
+  --spacing: 1rem;
+}
+
 body {
   font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   background-color: #f8fafc;
@@ -15,7 +22,7 @@ body {
 /* Sidebar */
 .sidebar {
   width: 240px;
-  background-color: #1e293b;
+  background-color:  var(--primary-color);;
   color: white;
   padding: 24px;
   display: flex;
@@ -66,13 +73,15 @@ body {
 /* Dashboard top actions */
 .dashboard-actions {
   display: flex;
-  justify-content: space-between;
+  /* justify-content: space-between; */
+  justify-content: flex-start;
   align-items: center;
   margin-bottom: 20px;
   flex-wrap: wrap;
 }
 
 .search-bar {
+  margin-left: 10px;
   padding: 10px 16px;
   border-radius: 10px;
   border: 1px solid #d1d5db;
@@ -90,7 +99,7 @@ body {
 /* Add Button */
 .add-button {
   max-width: 150px;
-  background-color: #3b82f6;
+  background-color: var(--primary-color);
   color: #ffffff;
   padding: 10px 20px;
   font-size: 15px;
@@ -173,7 +182,7 @@ body {
 /* Buttons */
 .edit-button,
 .delete-button {
-  max-width: 100px;
+  max-width: 110px;
   padding: 6px 12px;
   font-size: 14px;
   font-weight: 500;
@@ -225,4 +234,22 @@ body {
   padding: 32px;
   /* box-shadow: 0 8px 20px rgba(0, 0, 0, 0.04); */
   max-width: 1200px;
+}
+#edit-icon{
+  margin-bottom: -3px;
+  margin-left: 5px;
+}
+.low-stock-alert {
+  background-color: #fff3cd;
+  border-left: 5px solid #ffa502;
+  padding: 10px;
+  margin-bottom: 20px;
+  font-weight: bold;
+}
+.sort-dropdown {
+  margin-left: auto;
+  padding: 6px 10px;
+  font-size: 14px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
 }

@@ -20,19 +20,25 @@ export default function Dashboard() {
   const filteredItems = items.filter(item =>
     item.name.toLowerCase().includes(search.toLowerCase())
   );
-  const handleAddItem = (newItem) => {
-    setItems(prev => [...prev, newItem]);
-    window.alert(`Item "${newItem.name}" was added successfully.`);
-  };
+  // const handleAddItem = (newItem) => {
+  //   setItems(prev => [...prev, newItem]);
+  //   window.alert(`Item "${newItem.name}" was added successfully.`);
+  // };
   
   const totalValue = items.reduce((acc, item) => acc + item.price * item.quantity, 0);
 
   const deleteItem = (id) => {
     setItems(prev => prev.filter(item => item.id !== id));
   };
-  const addItem = (newItem) => {
-    setItems(prev => [...prev, newItem]);
+
+  const handleAddItem = (newItem) => {
+    const nextId = items.length > 0 ? Math.max(...items.map(item => item.id)) + 1 : 1;
+    const itemWithId = { ...newItem, id: nextId };
+    setItems(prev => [...prev, itemWithId]);
+    window.alert(`Item "${itemWithId.name}" was added successfully.`);
   };
+
+
   return (
     <div className="layout">
       <Navbar />
@@ -42,6 +48,8 @@ export default function Dashboard() {
           <h1 className="dashboard-title">Dashboard</h1>
 
           <div className="dashboard-actions">
+         
+
             {/* <button className="add-button" onClick={() => setIsModalOpen(true)}>
               <img className="icon" src="add.png" alt="" /> Add Item
             </button> */}
@@ -49,15 +57,16 @@ export default function Dashboard() {
               <img className='icon' src="add.png" alt="" /> Add Item
             </button>
 
-            <input
-              type="text"
-              placeholder="Search items..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+            <input type="text" placeholder="Search items..." value={search}  onChange={(e) => setSearch(e.target.value)}
               className="search-bar"
             />
+            
           </div>
-
+          {items.some(item => item.quantity < 10) && (
+            <div className="low-stock-alert">
+              ⚠️ Some items are low in stock!
+            </div>
+          )}
 
           <table className="item-table">
             <thead>
@@ -81,8 +90,8 @@ export default function Dashboard() {
                   <td>{item.quantity}</td>
                   <td><img className="item-image" src={item.img} alt="item" /></td>
                   <td className="action" >
-                    <button className="edit-button" onClick={() => setEditingItem(item)}>Edit</button>
-                    <button className="delete-button" onClick={() => deleteItem(item.id)}>Delete</button>
+                    <button className="edit-button" onClick={() => setEditingItem(item)}>Edit <img className='icon' id="edit-icon"src="edit.png" alt="edit.png" /> </button>
+                    <button className="delete-button" onClick={() => deleteItem(item.id)}>Delete  <img className='icon' id="edit-icon"src="delete.png" alt="edit.png" /></button>
                   </td>
                 </tr>
               ))}
@@ -114,6 +123,7 @@ export default function Dashboard() {
           }}
         />
       )}
+
 
     </div>
   );

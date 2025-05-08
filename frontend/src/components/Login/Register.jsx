@@ -1,150 +1,257 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
+import axios from 'axios';
+import { toast, ToastContainer } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
-import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import zxcvbn from 'zxcvbn';
 
-export default function Register() {
-    const navigate = useNavigate();
+const Register = () => {
     const [formData, setFormData] = useState({
         firstName: '',
         lastName: '',
+        username: '',
         email: '',
         password: '',
         confirmPassword: '',
         phone: '',
-        acceptTerms: false
+        acceptTerms: false,
     });
 
-    const [errors, setErrors] = useState({});
-    const [passwordStrength, setPasswordStrength] = useState('');
-    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
+    const [passwordScore, setPasswordScore] = useState(0);
+    const navigate = useNavigate();  // Use the navigate hook for redirection
 
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
-        setFormData(prev => ({
+
+        setFormData((prev) => ({
             ...prev,
-            [name]: type === 'checkbox' ? checked : value
+            [name]: type === 'checkbox' ? checked : value,
         }));
 
         if (name === 'password') {
-            checkPasswordStrength(value);
+            const strength = zxcvbn(value);
+            setPasswordScore(strength.score);
         }
-    };
-
-    const checkPasswordStrength = (password) => {
-        const strongRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*])(?=.{8,})/;
-        const mediumRegex = /^(((?=.*[a-z])(?=.*[A-Z]))|((?=.*[a-z])(?=.*[0-9]))|((?=.*[A-Z])(?=.*[0-9])))(?=.{6,})/;
-
-        if (strongRegex.test(password)) {
-            setPasswordStrength('strong');
-        } else if (mediumRegex.test(password)) {
-            setPasswordStrength('medium');
-        } else {
-            setPasswordStrength('weak');
-        }
-    };
-
-    const validateForm = () => {
-        const newErrors = {};
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        const phoneRegex = /^[+]?[(]?[0-9]{1,4}[)]?[-\s./0-9]*$/;
-
-        if (!formData.firstName.trim()) newErrors.firstName = 'First name is required';
-        if (!formData.lastName.trim()) newErrors.lastName = 'Last name is required';
-        if (!emailRegex.test(formData.email)) newErrors.email = 'Invalid email address';
-        if (formData.password.length < 6) newErrors.password = 'Password must be at least 6 characters';
-        if (formData.password !== formData.confirmPassword) newErrors.confirmPassword = 'Passwords do not match';
-        if (!phoneRegex.test(formData.phone)) newErrors.phone = 'Invalid phone number';
-        if (!formData.acceptTerms) newErrors.acceptTerms = 'You must accept the terms';
-
-        setErrors(newErrors);
-        return Object.keys(newErrors).length === 0;
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        if (!validateForm()) {
-            toast.error('Please fix the errors in the form');
+        const {
+            firstName,
+            lastName,
+            username,
+            email,
+            password,
+            confirmPassword,
+            phone,
+            acceptTerms,
+        } = formData;
+
+        console.log(formData);  // Debug: check form data
+
+        if (
+            !firstName ||
+            !lastName ||
+            !username ||
+            !email ||
+            !password ||
+            !confirmPassword ||
+            !phone
+        ) {
+            toast.error('Please fill in all fields.');
             return;
         }
 
-        setIsSubmitting(true);
+        if (password !== confirmPassword) {
+            toast.error('Passwords do not match.');
+            return;
+        }
+
+        if (!acceptTerms) {
+            toast.error('You must accept the terms and conditions.');
+            return;
+        }
 
         try {
-            const response = await fetch('http://localhost:8080/api/auth/register', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    firstName: formData.firstName,
-                    lastName: formData.lastName,
-                    email: formData.email,
-                    password: formData.password,
-                    confirmPassword: formData.confirmPassword,
-                    phone: formData.phone,
-                    acceptTerms: formData.acceptTerms
-                }),
+            const res = await axios.post('http://localhost:8080/api/users/register', {  // Update URL for your backend
+                firstName,
+                lastName,
+                username,
+                email,
+                password,
+                confirmPassword,
+                phone,
+                acceptTerms,
             });
 
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.message || data.error || 'Registration failed');
+            if (res.status === 200) {
+                toast.success('Registered successfully!');
+                setFormData({
+                    firstName: '',
+                    lastName: '',
+                    username: '',
+                    email: '',
+                    password: '',
+                    confirmPassword: '',
+                    phone: '',
+                    acceptTerms: false,
+                });
+                setPasswordScore(0);
+                navigate('/login');  // Redirect to the login page after successful registration
             }
-
-            toast.success('Registration successful! Redirecting...');
-            setTimeout(() => navigate('/dashboard'), 1500);
-        } catch (error) {
-            console.error('Registration error:', error);
-            toast.error(error.message || 'Registration failed. Please try again.');
-        } finally {
-            setIsSubmitting(false);
+        } catch (err) {
+            console.error(err); // Debug: check error
+            toast.error(err.response?.data || 'Registration failed!');
         }
     };
 
-    const getPasswordStrengthColor = () => {
-        switch (passwordStrength) {
-            case 'strong': return 'bg-green-500';
-            case 'medium': return 'bg-yellow-500';
-            case 'weak': return 'bg-red-500';
-            default: return 'bg-gray-300';
-        }
+    const renderStrengthMeter = () => {
+        const labels = ['Very Weak', 'Weak', 'Fair', 'Good', 'Strong'];
+        const colors = ['#e74c3c', '#e67e22', '#f1c40f', '#2ecc71', '#27ae60'];
+
+        return (
+            <div>
+                <div
+                    style={{
+                        height: '8px',
+                        width: '100%',
+                        backgroundColor: '#e0e0e0',
+                        borderRadius: '4px',
+                        marginTop: '8px',
+                    }}
+                >
+                    <div
+                        style={{
+                            height: '100%',
+                            width: `${(passwordScore + 1) * 20}%`,
+                            backgroundColor: colors[passwordScore],
+                            borderRadius: '4px',
+                            transition: 'width 0.3s ease-in-out',
+                        }}
+                    ></div>
+                </div>
+                <small style={{ color: colors[passwordScore] }}>
+                    {labels[passwordScore]}
+                </small>
+            </div>
+        );
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-            <div className="max-w-md w-full bg-white p-8 rounded-lg shadow-md">
-                <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">Create Your Account</h2>
-
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    {/* Form fields remain the same as in your original */}
-                    {/* ... */}
-
-                    <button
-                        type="submit"
-                        disabled={isSubmitting}
-                        className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    >
-                        {isSubmitting ? 'Registering...' : 'Register'}
-                    </button>
-                </form>
-
-                <div className="mt-4 text-center">
-                    <p className="text-sm text-gray-600">
-                        Already have an account?{' '}
-                        <button
-                            onClick={() => navigate('/login')}
-                            className="font-medium text-indigo-600 hover:text-indigo-500"
-                            disabled={isSubmitting}
-                        >
-                            Sign in
-                        </button>
-                    </p>
+        <div style={{ maxWidth: '500px', margin: 'auto' }}>
+            <h2>Register</h2>
+            <form onSubmit={handleSubmit}>
+                {/* Input fields for first name, last name, username, email, phone, etc. */}
+                <div>
+                    <label>First Name:</label>
+                    <input
+                        type="text"
+                        name="firstName"
+                        className="form-control"
+                        value={formData.firstName}
+                        onChange={handleChange}
+                    />
                 </div>
-            </div>
-            <ToastContainer position="top-center" />
+
+                <div>
+                    <label>Last Name:</label>
+                    <input
+                        type="text"
+                        name="lastName"
+                        className="form-control"
+                        value={formData.lastName}
+                        onChange={handleChange}
+                    />
+                </div>
+
+                <div>
+                    <label>Username:</label>
+                    <input
+                        type="text"
+                        name="username"
+                        className="form-control"
+                        value={formData.username}
+                        onChange={handleChange}
+                    />
+                </div>
+
+                <div>
+                    <label>Email:</label>
+                    <input
+                        type="email"
+                        name="email"
+                        className="form-control"
+                        value={formData.email}
+                        onChange={handleChange}
+                    />
+                </div>
+
+                <div>
+                    <label>Phone:</label>
+                    <input
+                        type="text"
+                        name="phone"
+                        className="form-control"
+                        value={formData.phone}
+                        onChange={handleChange}
+                    />
+                </div>
+
+                <div>
+                    <label>Password:</label>
+                    <input
+                        type={showPassword ? 'text' : 'password'}
+                        name="password"
+                        className="form-control"
+                        value={formData.password}
+                        onChange={handleChange}
+                    />
+                    {formData.password && renderStrengthMeter()}
+                </div>
+
+                <div>
+                    <label>Confirm Password:</label>
+                    <input
+                        type={showPassword ? 'text' : 'password'}
+                        name="confirmPassword"
+                        className="form-control"
+                        value={formData.confirmPassword}
+                        onChange={handleChange}
+                    />
+                </div>
+
+                <div>
+                    <label>
+                        <input
+                            type="checkbox"
+                            onChange={() => setShowPassword(!showPassword)}
+                        />{' '}
+                        Show Password
+                    </label>
+                </div>
+
+                <div>
+                    <label>
+                        <input
+                            type="checkbox"
+                            name="acceptTerms"
+                            checked={formData.acceptTerms}
+                            onChange={handleChange}
+                        />{' '}
+                        I accept the terms and conditions
+                    </label>
+                </div>
+
+                <button type="submit" className="btn btn-primary mt-2">
+                    Register
+                </button>
+            </form>
+
+            <ToastContainer />
         </div>
     );
-}
+};
+
+export default Register;

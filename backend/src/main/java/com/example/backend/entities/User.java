@@ -1,4 +1,4 @@
-package com.example.backend.auth.Register.Entities;
+package com.example.backend.entities;
 
 import jakarta.persistence.*;
 import lombok.Getter;

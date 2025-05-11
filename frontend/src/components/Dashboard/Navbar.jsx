@@ -1,35 +1,52 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import './dashboard.css';
-import { FaTachometerAlt, FaBox, FaCog, FaSignOutAlt } from 'react-icons/fa';
+import {
+    FaTachometerAlt, FaBox, FaCog, FaSignOutAlt,
+    FaUsers, FaTruck, FaChartBar, FaBars, FaTimes
+} from 'react-icons/fa';
 
 export default function Navbar({ username = "Admin" }) {
     const location = useLocation();
+    const [isOpen, setIsOpen] = useState(true); // sidebar toggle
+
+    const navItems = [
+        { label: "Dashboard", path: "/dashboard", icon: <FaTachometerAlt /> },
+        { label: "Items", path: "/items", icon: <FaBox /> },
+        { label: "Users", path: "/users", icon: <FaUsers /> },
+        { label: "Suppliers", path: "/suppliers", icon: <FaTruck /> },
+        { label: "Reports", path: "/reports", icon: <FaChartBar /> },
+        { label: "Settings", path: "/settings", icon: <FaCog /> }
+    ];
 
     const isActive = (path) => location.pathname === path ? 'active' : '';
 
     return (
-        <aside className="sidebar">
-            <div className="profile">
-                <img src="/stock.jpg" alt="User" />
-                <span>{username}</span>
+        <>
+            <div className="toggle-btn" onClick={() => setIsOpen(!isOpen)}>
+                {isOpen ? <FaTimes /> : <FaBars />}
             </div>
 
-            <h2>Stock Manager</h2>
-            <ul className="nav-list">
-                <li className={isActive('/dashboard')}>
-                    <Link to="/dashboard"><FaTachometerAlt /> Dashboard</Link>
-                </li>
-                <li className={isActive('/item')}>
-                    <Link to="/items"><FaBox /> Items</Link>
-                </li>
-                <li className={isActive('/settings')}>
-                    <Link to="/settings"><FaCog /> Settings</Link>
-                </li>
-                <li className="logout-link">
-                    <Link to="/logout"><FaSignOutAlt /> Logout</Link>
-                </li>
-            </ul>
-        </aside>
+            <aside className={`sidebar ${isOpen ? 'open' : 'closed'}`}>
+                <div className="profile">
+                    <img src="/stock.jpg" alt="User" />
+                    <span>{username}</span>
+                </div>
+
+                <h2>Stock Manager</h2>
+                <ul className="nav-list">
+                    {navItems.map((item, index) => (
+                        <li key={index} className={isActive(item.path)}>
+                            <Link to={item.path}>
+                                {item.icon} {isOpen && item.label}
+                            </Link>
+                        </li>
+                    ))}
+                    <li className="logout-link">
+                        <Link to="/logout"><FaSignOutAlt /> {isOpen && "Logout"}</Link>
+                    </li>
+                </ul>
+            </aside>
+        </>
     );
 }

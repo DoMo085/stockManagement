@@ -1,0 +1,36 @@
+.item-image {
+    width: 40px;
+    height: 40px;
+    object-fit: cover;
+    border-radius: 5px;
+}
+
+.in-stock {
+    background-color: #e6ffed;
+}
+
+.low-stock {
+    background-color: #fff5e5;
+}
+
+.out-of-stock {
+    background-color: #ffe5e5;
+}
+
+.action-buttons button {
+    margin: 0 4px;
+    padding: 6px 10px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.edit-btn {
+    background-color: #3b82f6;
+    color: white;
+}
+
+.delete-btn {
+    background-color: #ef4444;
+    color: white;
+}

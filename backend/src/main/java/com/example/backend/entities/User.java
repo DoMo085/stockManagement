@@ -4,11 +4,14 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
+@Table(name = "users", uniqueConstraints = {
+        @UniqueConstraint(columnNames = {"username"}),
+        @UniqueConstraint(columnNames = {"email"})
+})
 @Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
-@Table(name = "users")
 public class User {
 
     @Id
@@ -17,25 +20,21 @@ public class User {
 
     private String firstName;
     private String lastName;
+
+    @Column(nullable = false)
     private String username;
+
+    @Column(nullable = false)
     private String email;
 
     @Column(nullable = false)
-    private String password;  // This should store the hashed password
+    private String password;
 
     private String phone;
+
+    @Column(nullable = false)
     private boolean acceptTerms;
 
-    // Getters and setters omitted for brevity
-
-    @Builder
-    public User(String firstName, String lastName, String username, String email, String password, String phone, boolean acceptTerms) {
-        this.firstName = firstName;
-        this.lastName = lastName;
-        this.username = username;
-        this.email = email;
-        this.password = password;
-        this.phone = phone;
-        this.acceptTerms = acceptTerms;
-    }
+    @Column(nullable = false)
+    private String role;
 }

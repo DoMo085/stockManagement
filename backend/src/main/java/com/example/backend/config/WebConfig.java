@@ -8,7 +8,6 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
 
-    @SuppressWarnings("null")
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         // Allows your frontend (localhost:3000) to communicate with the backend (localhost:8080)
@@ -16,5 +15,6 @@ public class WebConfig implements WebMvcConfigurer {
                 .allowedOrigins("http://localhost:3000")  // Update this if needed
                 .allowedMethods("GET", "POST", "PUT", "DELETE")
                 .allowedHeaders("*");
+
     }
 }

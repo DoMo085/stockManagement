@@ -1,8 +1,11 @@
 package com.example.backend.service;
 
-import com.example.backend.dto.*;
+import com.example.backend.dto.AuthResponse;
+import com.example.backend.dto.LoginRequest;
+import com.example.backend.dto.RegisterRequest;
 import com.example.backend.entities.User;
-import com.example.backend.exception.*;
+import com.example.backend.exception.ConflictException;
+import com.example.backend.exception.UnauthorizedException;
 import com.example.backend.repository.UserRepository;
 import com.example.backend.security.JwtUtil;
 import lombok.RequiredArgsConstructor;
@@ -19,72 +22,82 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
 
-    // ========= REGISTER ==========
+    // Register new user
     public AuthResponse register(RegisterRequest request) {
-        // Validate registration (username or email conflicts)
         validateRegistration(request);
-
-        // Create and save new user
         User user = createNewUser(request);
         userRepository.save(user);
-
-        // Return AuthResponse with JWT token
         return buildAuthResponse(user);
     }
 
-    // ========= LOGIN ==========
+    // Login user
     public AuthResponse login(LoginRequest request) {
-        // Authenticate user (check username/email and password)
         User user = authenticateUser(request);
-
-        // Generate JWT token and return the response
         return buildAuthResponse(user);
     }
 
-    // ========= PRIVATE METHODS ==========
-    private void validateRegistration(RegisterRequest request) {
-        // Check if username or email is already in use
-        if (userRepository.existsByUsernameOrEmail(request.getUsername(), request.getEmail())) {
-            throw new ConflictException("Username or email already in use");
-        }
-    }
-
-    private User createNewUser(RegisterRequest request) {
-        // Create a new User object and hash the password
-        return User.builder()
-                .firstName(request.getFirstName())
-                .lastName(request.getLastName())
-                .username(request.getUsername().trim())
-                .email(request.getEmail().trim().toLowerCase())
-                .password(passwordEncoder.encode(request.getPassword())) // Encrypt password
-                .phone(request.getPhone())
-                .acceptTerms(request.isAcceptTerms())
-                .role("USER") // Default role, or this can be set dynamically
-                .build();
-    }
-
-    private User authenticateUser(LoginRequest request) {
-        // Check if the user exists and validate the password
-        User user = userRepository.findByIdentifier(request.getIdentifier().trim().toLowerCase())
-                .orElseThrow(() -> new UnauthorizedException("Invalid credentials"));
-
-
-        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            throw new UnauthorizedException("Invalid credentials");
+    // Refresh access token using refresh token only
+    public AuthResponse refreshToken(String refreshToken) {
+        if (!jwtUtil.isTokenValid(refreshToken)) {
+            throw new UnauthorizedException("Invalid or expired refresh token");
         }
 
-        return user;
-    }
+        String username = jwtUtil.extractUsername(refreshToken);
 
-    private AuthResponse buildAuthResponse(User user) {
-        // Generate JWT token and build AuthResponse
-        String token = jwtUtil.generateToken(user.getUsername(), user.getRole());
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new UnauthorizedException("User not found"));
+
+        String newAccessToken = jwtUtil.generateToken(user.getUsername(), user.getRole());
+        String newRefreshToken = jwtUtil.generateRefreshToken(user.getUsername());
+
         return AuthResponse.builder()
-                .token(token)
+                .accessToken(newAccessToken)
+                .refreshToken(newRefreshToken)
                 .username(user.getUsername())
                 .email(user.getEmail())
                 .role(user.getRole())
                 .build();
     }
 
+    private void validateRegistration(RegisterRequest request) {
+        if (userRepository.existsByUsernameOrEmail(request.getUsername(), request.getEmail())) {
+            throw new ConflictException("Username or email already in use");
+        }
+    }
+
+    private User createNewUser(RegisterRequest request) {
+        return User.builder()
+                .firstName(request.getFirstName())
+                .lastName(request.getLastName())
+                .username(request.getUsername().trim())
+                .email(request.getEmail().trim().toLowerCase())
+                .password(passwordEncoder.encode(request.getPassword()))
+                .phone(request.getPhone())
+                .acceptTerms(request.isAcceptTerms())
+                .role("USER")
+                .build();
+    }
+
+    private User authenticateUser(LoginRequest request) {
+        User user = userRepository.findByIdentifier(request.getIdentifier().trim().toLowerCase())
+                .orElseThrow(() -> new UnauthorizedException("Invalid credentials"));
+
+        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            throw new UnauthorizedException("Invalid credentials");
+        }
+        return user;
+    }
+
+    private AuthResponse buildAuthResponse(User user) {
+        String accessToken = jwtUtil.generateToken(user.getUsername(), user.getRole());
+        String refreshToken = jwtUtil.generateRefreshToken(user.getUsername());
+
+        return AuthResponse.builder()
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
+                .username(user.getUsername())
+                .email(user.getEmail())
+                .role(user.getRole())
+                .build();
+    }
 }

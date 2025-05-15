@@ -2,6 +2,7 @@ package com.example.backend.security;
 
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -11,11 +12,24 @@ import java.util.Date;
 @Component
 public class JwtUtil {
 
-    private final long jwtExpiration = 1000 * 60 * 60; // 1 hour
-    private final Key secretKey;
+    @Value("${jwt.secret}")
+    private String secret;
 
-    public JwtUtil(@Value("${jwt.secret}") String secret) {
-        this.secretKey = Keys.hmacShaKeyFor(secret.getBytes());
+    @Value("${jwt.access-expiration-ms:3600000}") // 1 hour default
+    private long accessTokenExpiration;
+
+    @Value("${jwt.refresh-expiration-ms:604800000}") // 7 days default
+    private long refreshTokenExpiration;
+
+    private Key secretKey;
+
+    @PostConstruct
+    public void init() {
+        byte[] keyBytes = secret.getBytes();
+        if (keyBytes.length < 32) {  // 256 bits = 32 bytes
+            throw new IllegalArgumentException("JWT secret key must be at least 256 bits (32 bytes)");
+        }
+        this.secretKey = Keys.hmacShaKeyFor(keyBytes);
     }
 
     public String generateToken(String username, String role) {
@@ -23,7 +37,16 @@ public class JwtUtil {
                 .setSubject(username)
                 .claim("role", role)
                 .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + jwtExpiration))
+                .setExpiration(new Date(System.currentTimeMillis() + accessTokenExpiration))
+                .signWith(secretKey)
+                .compact();
+    }
+
+    public String generateRefreshToken(String username) {
+        return Jwts.builder()
+                .setSubject(username)
+                .setIssuedAt(new Date())
+                .setExpiration(new Date(System.currentTimeMillis() + refreshTokenExpiration))
                 .signWith(secretKey)
                 .compact();
     }
@@ -33,14 +56,20 @@ public class JwtUtil {
     }
 
     public String extractRole(String token) {
-        return getClaims(token).get("role", String.class);
+        Claims claims = getClaims(token);
+        String role = claims.get("role", String.class);
+        return role != null ? role : "";
     }
 
     public boolean isTokenValid(String token) {
         try {
-            getClaims(token);
-            return true;
+            Claims claims = getClaims(token);
+            return !claims.getExpiration().before(new Date());
+        } catch (ExpiredJwtException e) {
+            // Token expired
+            return false;
         } catch (JwtException | IllegalArgumentException e) {
+            // Invalid token
             return false;
         }
     }

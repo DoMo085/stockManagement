@@ -37,4 +37,9 @@ public class User {
 
     @Column(nullable = false)
     private String role;
+
+    // Helper to get Role enum from String role
+    public Role getRoleEnum() {
+        return Role.valueOf(this.role);
+    }
 }

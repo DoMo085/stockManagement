@@ -1,9 +1,6 @@
 package com.example.backend.controller;
 
-import com.example.backend.dto.AuthResponse;
-import com.example.backend.dto.LoginRequest;
-import com.example.backend.dto.RegisterRequest;
-import com.example.backend.dto.RefreshTokenRequest;
+import com.example.backend.dto.*;
 import com.example.backend.exception.ConflictException;
 import com.example.backend.service.AuthService;
 import jakarta.validation.Valid;
@@ -28,7 +25,7 @@ public class AuthController {
     @PostMapping("/register")
     public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest request) {
         try {
-            AuthResponse response = authService.register(request);
+            RegisterResponse response = authService.register(request);
             return new ResponseEntity<>(response, HttpStatus.CREATED);
         } catch (ConflictException e) {
             return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);

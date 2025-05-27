@@ -75,7 +75,7 @@ const Register = () => {
         }
 
         try {
-            const res = await axios.post('http://localhost:8080/api/users/register', {  // Update URL for your backend
+            const res = await axios.post('http://localhost:8080/api/auth/register', {  // Update URL for your backend
                 firstName,
                 lastName,
                 username,

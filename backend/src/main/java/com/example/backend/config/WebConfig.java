@@ -1,5 +1,4 @@
-package com.example.backend.config;  // You can choose the package name
-
+package com.example.backend.config;
 
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
@@ -14,7 +13,7 @@ public class WebConfig implements WebMvcConfigurer {
         registry.addMapping("/**")
                 .allowedOrigins("http://localhost:3000")  // Update this if needed
                 .allowedMethods("GET", "POST", "PUT", "DELETE")
-                .allowedHeaders("*");
-
+                .allowedHeaders("*")
+                .allowCredentials(true);
     }
 }

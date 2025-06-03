@@ -3,17 +3,18 @@ package com.example.backend.dto;
 import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 
-@Data // Combines @Getter, @Setter, @ToString, @EqualsAndHashCode
-@NoArgsConstructor // Adds default constructor
-@AllArgsConstructor // Adds constructor with all fields
-
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class LoginRequest {
 
     @NotBlank(message = "Username or email is required")
-    private String identifier;
+    private String identifier;  // username or email
 
     @NotBlank(message = "Password is required")
     private String password;
 
-    // Getters & Setters or Lombok @Data/@Getter/@Setter
+    public void setIdentifier(String identifier) {
+        this.identifier = identifier != null ? identifier.trim().toLowerCase() : null;
+    }
 }

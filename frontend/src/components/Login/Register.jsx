@@ -1,226 +1,188 @@
 import { useState } from 'react';
 import axios from 'axios';
-import { toast, ToastContainer } from 'react-toastify';
-import { useNavigate, Link } from 'react-router-dom';
+import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import zxcvbn from 'zxcvbn';
-import '../css/Register.css';
+import { useNavigate, Link } from 'react-router-dom';
+import { Eye, EyeOff } from 'react-feather'; // For password visibility toggle
+import '../css/login.css';
 
-const Register = () => {
-  const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    username: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
-    phone: '',
-    acceptTerms: false,
-  });
-
-  const [errors, setErrors] = useState({});
+export default function Login() {
+  const [identifier, setIdentifier] = useState('');
+  const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [passwordScore, setPasswordScore] = useState(0);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [forgotPasswordEmail] = useState('');
   const navigate = useNavigate();
 
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  const phoneRegex = /^[\d\s()+-]{10,20}$/;
-
-
-  const containsSpace = (value) => /\s/.test(value);
-
-  const validateForm = () => {
-    const newErrors = {};
-
-    if (!formData.firstName.trim()) newErrors.firstName = 'First name is required';
-    if (!formData.lastName.trim()) newErrors.lastName = 'Last name is required';
-
-    if (!formData.username.trim()) newErrors.username = 'Username is required';
-    else if (containsSpace(formData.username)) newErrors.username = 'Username must not contain spaces';
-
-    if (!formData.email.trim()) newErrors.email = 'Email is required';
-    else if (!emailRegex.test(formData.email)) newErrors.email = 'Invalid email format';
-    else if (containsSpace(formData.email)) newErrors.email = 'Email must not contain spaces';
-
-    if (!formData.phone.trim()) newErrors.phone = 'Phone number is required';
-    else if (!phoneRegex.test(formData.phone)) newErrors.phone = 'Invalid phone number';
-
-    if (!formData.password) newErrors.password = 'Password is required';
-    else if (formData.password.length < 8) newErrors.password = 'Password must be at least 8 characters';
-    else if (containsSpace(formData.password)) newErrors.password = 'Password must not contain spaces';
-
-    if (!formData.confirmPassword) newErrors.confirmPassword = 'Confirm password is required';
-    else if (formData.password !== formData.confirmPassword) newErrors.confirmPassword = 'Passwords do not match';
-    else if (containsSpace(formData.confirmPassword)) newErrors.confirmPassword = 'Confirm password must not contain spaces';
-
-    if (!formData.acceptTerms) newErrors.acceptTerms = 'You must accept the terms';
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+  // Basic email validation
+  const validateEmail = (email) => {
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return re.test(email);
   };
 
-
-
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-
-    const cleanedValue = type === 'checkbox' ? checked : value.trimStart();
-    setFormData((prev) => ({
-      ...prev,
-      [name]: cleanedValue,
-    }));
-
-    if (name === 'password') {
-      const strength = zxcvbn(value);
-      setPasswordScore(strength.score);
-    }
-
-    if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: '' }));
-    }
+  // Sanitize input
+  const sanitizeInput = (input) => {
+    return input.replace(/[<>"'`;]/g, '');
   };
 
-  const handleSubmit = async (e) => {
+  async function handleLogin(e) {
     e.preventDefault();
-    if (!validateForm()) return;
-    setIsSubmitting(true);
+
+    // Validate inputs
+    if (!identifier || !password) {
+      toast.error('Please fill in all fields');
+      return;
+    }
+
+    if (!validateEmail(identifier)) {
+      toast.error('Please enter a valid email address or username');
+      return;
+    }
+
+    // Sanitize inputs
+    const sanitizedIdentifier = sanitizeInput(identifier);
+    const sanitizedPassword = sanitizeInput(password);
+
+    setIsLoading(true);
 
     try {
-      const response = await axios.post(`${process.env.REACT_APP_API_URL}/auth/register`, {
-        firstName: formData.firstName.trim(),
-        lastName: formData.lastName.trim(),
-        username: formData.username.trim().toLowerCase(),
-        email: formData.email.trim().toLowerCase(),
-        password: formData.password,
-        confirmPassword: formData.confirmPassword,
-        phone: formData.phone.trim(),
-        acceptTerms: formData.acceptTerms,
-      });
+      const loginData = {
+        identifier: sanitizedIdentifier,
+        password: sanitizedPassword,
+      };
 
-      if (response.status === 201) {
-        toast.success('Registration successful!');
-        console.log(response.data);
-        alert("Registration successful!");
-        navigate('/Login');
-      }
+      const response = await axios.post('http://localhost:8080/api/auth/login', loginData);
+
+      toast.success('Login successful!');
+      const { accessToken, refreshToken, user } = response.data;
+
+      // Store tokens and user data
+      localStorage.setItem('accessToken', accessToken);
+      localStorage.setItem('refreshToken', refreshToken);
+      localStorage.setItem('user', JSON.stringify(user));
+
+      setTimeout(() => {
+        navigate('/dashboard');
+      }, 1000);
     } catch (error) {
-      if (error.response?.status === 400 && error.response.data.errors) {
-        const backendErrors = {};
-        error.response.data.errors.forEach(err => {
-          backendErrors[err.field] = err.message;
-        });
-        setErrors(backendErrors);
+      if (error.response) {
+        switch (error.response.status) {
+          case 401:
+            toast.error('Invalid email or password.');
+            break;
+          case 400:
+            toast.error('Bad request. Please check your input.');
+            break;
+          case 429:
+            toast.error('Too many attempts. Please try again later.');
+            break;
+          default:
+            toast.error('Login failed. Please try again.');
+        }
+      } else if (error.request) {
+        toast.error('Network error. Please check your connection.');
       } else {
-        toast.error(error.response?.data?.message || 'Registration failed');
+        toast.error('An unexpected error occurred.');
       }
     } finally {
-      setIsSubmitting(false);
+      setIsLoading(false);
     }
-  };
+  }
 
-  const renderStrengthMeter = () => {
-    const labels = ['Very Weak', 'Weak', 'Fair', 'Good', 'Strong'];
-    const colors = ['#e74c3c', '#e67e22', '#f1c40f', '#2ecc71', '#27ae60'];
+  async function handleForgotPassword() {
+    if (!forgotPasswordEmail || !validateEmail(forgotPasswordEmail)) {
+      toast.error('Please enter a valid email address');
+      return;
+    }
 
-    return (
-        <div className="password-strength">
-          <div className="strength-meter">
-            <div
-                className="strength-bar"
-                style={{
-                  width: `${(passwordScore + 1) * 20}%`,
-                  backgroundColor: colors[passwordScore],
-                }}
-            ></div>
-          </div>
-          <small style={{ color: colors[passwordScore] }}>{labels[passwordScore]}</small>
-        </div>
-    );
-  };
+    try {
+      await axios.post('http://localhost:8080/api/auth/forgot-password', {
+        email: sanitizeInput(forgotPasswordEmail)
+      });
+      toast.success('Password reset link sent to your email!');
+      // setShowForgotPasswordModal(false);
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to send reset link');
+    }
+  }
+
 
   return (
-      <div className="auth-container">
-        <div className="auth-form">
-          <h2>Create an Account</h2>
-          <form onSubmit={handleSubmit} noValidate>
-            {['firstName', 'lastName', 'username', 'email', 'phone'].map((field) => (
-                <div className="form-group" key={field}>
-                  <label htmlFor={field}>{field.replace(/([A-Z])/, ' $1')}*</label>
-                  <input
-                      id={field}
-                      name={field}
-                      type={field === 'email' ? 'email' : field === 'phone' ? 'tel' : 'text'}
-                      value={formData[field]}
-                      onChange={handleChange}
-                      className={errors[field] ? 'error' : ''}
-                  />
-                  {errors[field] && <span className="error-message">{errors[field]}</span>}
-                </div>
-            ))}
+      <div className="login-container">
+        <form onSubmit={handleLogin} className='login-form'>
+          <h1>Welcome Back</h1>
+          <p className="login-subtitle">Sign in to your account</p>
 
-            <div className="form-group">
-              <label htmlFor="password">Password*</label>
-              <div className="password-input">
-                <input
-                    id="password"
-                    type={showPassword ? 'text' : 'password'}
-                    name="password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    className={errors.password ? 'error' : ''}
-                />
-                <button
-                    type="button"
-                    className="password-toggle"
-                    onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? '🙈' : '👁️'}
-                </button>
-              </div>
-              {formData.password && renderStrengthMeter()}
-              {errors.password && <span className="error-message">{errors.password}</span>}
-            </div>
+          {/* Rest of your form elements remain the same */}
+          <div className="form-group">
+            <label htmlFor="email">Email Or Username</label>
+            <input
+                type="identifier"
+                id="identifier"
+                placeholder="Enter your email"
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
+                required
+                autoComplete="username"
+            />
+          </div>
 
-            <div className="form-group">
-              <label htmlFor="confirmPassword">Confirm Password*</label>
+          <div className="form-group password-input-container">
+            <label htmlFor="password">Password</label>
+            <div className="password-input-wrapper">
               <input
-                  id="confirmPassword"
-                  type={showPassword ? 'text' : 'password'}
-                  name="confirmPassword"
-                  value={formData.confirmPassword}
-                  onChange={handleChange}
-                  className={errors.confirmPassword ? 'error' : ''}
+                  type={showPassword ? "text" : "password"}
+                  id="password"
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  autoComplete="current-password"
               />
-              {errors.confirmPassword && <span className="error-message">{errors.confirmPassword}</span>}
+              <button
+                  type="button"
+                  className="password-toggle"
+                  onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
             </div>
+          </div>
 
-            <div className="form-group checkbox-group">
-              <label>
-                <input
-                    type="checkbox"
-                    name="acceptTerms"
-                    checked={formData.acceptTerms}
-                    onChange={handleChange}
-                    className={errors.acceptTerms ? 'error' : ''}
-                />
-                I accept the <a href="/terms" target="_blank" rel="noopener noreferrer">Terms and Conditions</a>
+          <button
+              className="login-btn"
+              type="submit"
+              disabled={isLoading}
+          >
+            {isLoading ? 'Logging in...' : 'Sign In'}
+          </button>
+
+          <div className="form-footer">
+            <div className="remember-forgot">
+              <label className="remember-me">
+                <input type="checkbox" />
+                <span>Remember me</span>
               </label>
-              {errors.acceptTerms && <span className="error-message">{errors.acceptTerms}</span>}
+              <button
+                  type="button"
+                  className="forgot-password"
+                  // onClick={() => setShowForgotPasswordModal(true)}
+              >
+                Forgot password?
+              </button>
             </div>
 
-            <button type="submit" className="submit-btn" disabled={isSubmitting}>
-              {isSubmitting ? 'Registering...' : 'Register'}
-            </button>
+            <p className="no-account">
+              Don't have an account?{' '}
+              <Link to="/register" className='register-link'>Sign up</Link>
+            </p>
+          </div>
+        </form>
 
-            <div className="auth-footer">
-              Already have an account? <Link to="/login">Sign in</Link>
-            </div>
-          </form>
-        </div>
-        <ToastContainer position="top-center" autoClose={5000} />
+        {/* Forgot Password Modal (keep existing) */}
+
+        <ToastContainer position="top-center" />
       </div>
   );
-};
-
-export default Register;
+}

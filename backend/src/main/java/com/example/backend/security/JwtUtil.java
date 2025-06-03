@@ -3,13 +3,16 @@ package com.example.backend.security;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.security.Key;
+import java.util.Base64;
 import java.util.Date;
 
 @Component
+@Slf4j
 public class JwtUtil {
 
     @Value("${jwt.secret}")
@@ -25,11 +28,25 @@ public class JwtUtil {
 
     @PostConstruct
     public void init() {
-        byte[] keyBytes = secret.getBytes();
-        if (keyBytes.length < 32) {  // 256 bits = 32 bytes
-            throw new IllegalArgumentException("JWT secret key must be at least 256 bits (32 bytes)");
+        try {
+            // Try to decode Base64 secret, fallback to raw bytes if invalid
+            byte[] keyBytes;
+            try {
+                keyBytes = Base64.getDecoder().decode(secret);
+                log.debug("JWT secret detected as Base64 encoded.");
+            } catch (IllegalArgumentException e) {
+                log.debug("JWT secret is not Base64 encoded, using raw bytes.");
+                keyBytes = secret.getBytes();
+            }
+
+            if (keyBytes.length < 32) {  // 256 bits = 32 bytes
+                throw new IllegalArgumentException("JWT secret key must be at least 256 bits (32 bytes)");
+            }
+            this.secretKey = Keys.hmacShaKeyFor(keyBytes);
+        } catch (Exception e) {
+            log.error("Error initializing JWT secret key: {}", e.getMessage());
+            throw e;
         }
-        this.secretKey = Keys.hmacShaKeyFor(keyBytes);
     }
 
     public String generateToken(String username, String role) {
@@ -64,12 +81,14 @@ public class JwtUtil {
     public boolean isTokenValid(String token) {
         try {
             Claims claims = getClaims(token);
-            return !claims.getExpiration().before(new Date());
+            boolean notExpired = !claims.getExpiration().before(new Date());
+            log.debug("Token expiration check: notExpired={}", notExpired);
+            return notExpired;
         } catch (ExpiredJwtException e) {
-            // Token expired
+            log.debug("Token expired: {}", e.getMessage());
             return false;
         } catch (JwtException | IllegalArgumentException e) {
-            // Invalid token
+            log.debug("Invalid token: {}", e.getMessage());
             return false;
         }
     }
@@ -81,4 +100,10 @@ public class JwtUtil {
                 .parseClaimsJws(token)
                 .getBody();
     }
+
+    /*
+    Optional:
+    To support manual token invalidation (logout), you can implement a token blacklist or revocation list.
+    This requires storing tokens server-side and checking against them in isTokenValid().
+    */
 }
